@@ -13,8 +13,7 @@ android {
         versionCode 1
         versionName "1.0"
         manifestPlaceholders["API_KEY"] = project.AIRCRAFT_API_KEY
-        manifestPlaceholders["GMAP_API_KEY"] = project.GMAP_API_KEY
-        manifestPlaceholders["MAPLIBRE_TOKEN"] = project.MAPLIBRE_TOKEN
+
         ndk {
             //noinspection ChromeOsAbiSupport
             abiFilters 'arm64-v8a'
@@ -23,7 +22,7 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
             shrinkResources false
         }
         debug {
