@@ -1,8 +1,13 @@
 package com.example.rosdronebridge.models
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.rosdronebridge.data.DroneState
 import com.example.rosdronebridge.data.Message
+import com.example.rosdronebridge.data.ROSMessage
+import com.example.rosdronebridge.data.StringPayload
+import com.example.rosdronebridge.util.ROSMessageParser
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -12,13 +17,18 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import java.sql.Timestamp
 
-class ROSBridgeClientVM : ViewModel() {
+class ROSBridgeClientVM(
+    private val parser: ROSMessageParser
+) : ViewModel() {
     private val client = OkHttpClient()
     private var webSocket: WebSocket? = null
+    private val _message = MutableSharedFlow<ROSMessage?>()
+    val message = _message.asSharedFlow()
 
-    private val _messages = MutableStateFlow<List<Message>>(emptyList())
-    val messages: StateFlow<List<Message>> = _messages
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected
 
@@ -29,31 +39,34 @@ class ROSBridgeClientVM : ViewModel() {
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 _isConnected.value = true
-                addMessage("Connected to Server", false)
-                subscribeToDroneCommands()
+                viewModelScope.launch {
+                    subscribeToDroneCommands()
+                    advertiseTelemetry()
+                    advertiseDroneState()
+                }
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                val rosMessage = parser.parseRosCommand(text)
                 viewModelScope.launch {
-                    addMessage(text, false)
+                    _message.emit(rosMessage)
                 }
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 viewModelScope.launch {
                     _isConnected.value = false
-                    addMessage("Connection failed ${t.message}\"", false)
+//                    addMessage("Connection failed ${t.message}\"", false)
                 }
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                 _isConnected.value = false
-                addMessage("Connection closing $reason", false)
             }
         })
     }
 
-    private fun subscribeToDroneCommands() {
+    private suspend fun subscribeToDroneCommands() {
         val text = "{\n" +
                 "  \"op\": \"subscribe\",\n" +
                 "  \"topic\": \"drone_commands\",\n" +
@@ -61,28 +74,78 @@ class ROSBridgeClientVM : ViewModel() {
                 "}"
 
         if (_isConnected.value) {
-            webSocket?.send(text)
-            addMessage(text, true)
+            if (webSocket?.send(text) == true) {
+                _message.emit(ROSMessage(
+                    "subscribe",
+                    "drone_commands",
+                    StringPayload("Subscribed to ROS topic: drone_commands"),
+                    Timestamp(System.currentTimeMillis())
+                ))
+            } else {
+                _message.emit(ROSMessage(
+                    "subscribe",
+                    "drone_commands",
+                    StringPayload("Subscribe to ROS topic: fail"),
+                    Timestamp(System.currentTimeMillis())
+                ))
+            }
         } else {
-            addMessage("Not connected", false)
+            _message.emit(ROSMessage(
+                "subscribe",
+                "drone_commands",
+                StringPayload("Subscribe to ROS topic: fail - not connected to WebSocket"),
+                Timestamp(System.currentTimeMillis())
+            ))
         }
     }
 
-    fun sendMessage(text: String) {
-        if (_isConnected.value) {
-            webSocket?.send(text)
-            addMessage(text, true)
-        } else {
-            addMessage("Not connected", false)
-        }
+    fun publish(topic: String, message: String) {
+
+        if (!_isConnected.value) return
+
+        val json = """
+            {
+              "op": "publish",
+              "topic": "$topic",
+              "msg": $message
+            }
+            """
+
+        webSocket?.send(json)
     }
 
-    private fun addMessage(messageText: String, isSentByUser: Boolean) {
-        _messages.update { current ->
-            val nextId = (current.lastOrNull()?.id ?: 0) + 1
-            val message = Message(nextId, messageText, isSentByUser)
-            current + message
+    fun publishTelemetry(droneState: DroneState) {
+        if (!_isConnected.value) {
+            Log.d("ROSBridgeClientVM fail", "Failed to publish telemetry data")
+            return
         }
+
+        webSocket?.send(parser.parseTelemetryData(droneState))
+        webSocket?.send(parser.parseDroneState(droneState))
+    }
+
+    // Used to create a ROS topic which will enable publishing of drone telemetry to ROS
+    fun advertiseTelemetry() {
+        val json = """
+            {
+              "op": "advertise",
+              "topic": "/drone/telemetry",
+              "type": "std_msgs/String"
+            }
+            """
+        webSocket?.send(json)
+    }
+
+    // Used to create a ROS topic which will enable publishing of drone state to ROS
+    fun advertiseDroneState() {
+        val json = """
+            {
+              "op": "advertise",
+              "topic": "/drone/state",
+              "type": "std_msgs/String"
+            }
+            """
+        webSocket?.send(json)
     }
 
     fun disconnect() {

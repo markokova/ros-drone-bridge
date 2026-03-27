@@ -29,7 +29,7 @@ class VirtualStickVM : DJIViewModel() {
         value?.rollPitchCoordinateSystem = FlightCoordinateSystem.BODY
         value?.verticalControlMode = VerticalControlMode.VELOCITY
         value?.yawControlMode = YawControlMode.ANGULAR_VELOCITY
-        value?.rollPitchControlMode = RollPitchControlMode.ANGLE
+        value?.rollPitchControlMode = RollPitchControlMode.VELOCITY
     }
 
     // RC Stick Value
