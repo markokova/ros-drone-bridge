@@ -8,10 +8,13 @@ import dji.v5.common.error.IDJIError
 import dji.v5.common.register.DJISDKInitEvent
 import dji.v5.manager.SDKManager
 import dji.v5.manager.interfaces.SDKManagerCallback
+import dji.v5.network.DJINetworkManager
 
 class MSDKManagerVM : ViewModel() {
 
     val registerState = MutableLiveData<Pair<Boolean, IDJIError?>>()
+    var isInit = false
+
     fun initMobileSDK(appContext: Context) {
         SDKManager.getInstance().init(appContext, object : SDKManagerCallback {
             override fun onRegisterSuccess() {
@@ -26,12 +29,13 @@ class MSDKManagerVM : ViewModel() {
 
             }
             override fun onProductConnect(productId: Int) {
-
+                Log.d("MSDKManagerVM", "Product connected")
             }
             override fun onProductChanged(productId: Int) {
             }
             override fun onInitProcess(event: DJISDKInitEvent?, totalProcess: Int) {
                 if (event == DJISDKInitEvent.INITIALIZE_COMPLETE) {
+                    isInit = true
                     SDKManager.getInstance().registerApp()
                 }
             }
@@ -41,5 +45,11 @@ class MSDKManagerVM : ViewModel() {
             fun onDatabaseDownloadSuccess() {
             }
         })
+
+        DJINetworkManager.getInstance().addNetworkStatusListener { isAvailable ->
+            if (isInit && isAvailable && !SDKManager.getInstance().isRegistered) {
+                SDKManager.getInstance().registerApp()
+            }
+        }
     }
 }

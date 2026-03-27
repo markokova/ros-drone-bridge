@@ -40,7 +40,7 @@
         android:networkSecurityConfig="@xml/network_security_config">
         <meta-data
             android:name="com.dji.sdk.API_KEY"
-            android:value="62f87133f64c1095a5dfad2a"/>
+            android:value="${API_KEY}"/>
 
         <activity
             android:name=".MainActivity"

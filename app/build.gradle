@@ -14,6 +14,7 @@ android {
         versionName "1.0"
         manifestPlaceholders["API_KEY"] = project.AIRCRAFT_API_KEY
 
+        multiDexEnabled true
         ndk {
             //noinspection ChromeOsAbiSupport
             abiFilters 'arm64-v8a'
@@ -29,13 +30,6 @@ android {
             minifyEnabled false
             shrinkResources false
         }
-    }
-
-    packagingOptions {
-        // 因为mrtc库内部使用了NDK的c++_shared的编译参数
-        // 与其他库重复引用了，因此选其中一个即可
-        pickFirst 'lib/arm64-v8a/libc++_shared.so'
-        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
     }
 
     compileOptions {
@@ -82,6 +76,10 @@ android {
         doNotStrip "*/*/libmrtc_onvif.so"
         doNotStrip "*/*/libmrtc_rtmp.so"
         doNotStrip "*/*/libmrtc_rtsp.so"
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+        pickFirst "**/libdjisdk_v5.so"
+        pickFirst "**/libSDKRelativeJNI.so"
     }
 
     buildFeatures {
@@ -93,6 +91,7 @@ dependencies {
     /** <-----------------依赖MSDK--------------------> **/
     compileOnly deps.aircraftProvided
     implementation deps.aircraft
+    implementation deps.networkImp
 
     /** <-----------------sample所需--------------------> **/
     implementation project(':uxsdk')
@@ -117,4 +116,5 @@ dependencies {
     implementation deps.dom
     kapt deps.glidecompiler
     implementation deps.lynx
+    implementation "androidx.multidex:multidex:2.0.1"
 }

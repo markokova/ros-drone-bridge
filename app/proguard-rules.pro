@@ -20,3 +20,6 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 #-keep class com.cySdkyc.clx.** { *; }
+-keep class dji.v5.** { *; }
+-keep interface dji.v5.** { *; }
+-dontwarn dji.v5.**
