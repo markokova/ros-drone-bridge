@@ -1,6 +1,8 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-kapt'
+apply plugin: 'dagger.hilt.android.plugin'
+
 
 android {
     namespace 'com.example.rosdronebridge'
@@ -88,6 +90,8 @@ android {
 }
 
 dependencies {
+    implementation libs.play.services.maps3d
+
     /** <-----------------依赖MSDK--------------------> **/
     compileOnly deps.aircraftProvided
     implementation deps.aircraft
@@ -117,4 +121,6 @@ dependencies {
     kapt deps.glidecompiler
     implementation deps.lynx
     implementation "androidx.multidex:multidex:2.0.1"
+    implementation deps.hiltAndroid
+    kapt deps.hiltAndroidCompiler
 }

@@ -6,8 +6,11 @@ import dji.v5.common.callback.CommonCallbacks
 import dji.v5.common.error.IDJIError
 import dji.v5.et.action
 import dji.v5.et.create
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class BasicAircraftControlVM : DJIViewModel() {
+@Singleton
+class BasicAircraftControlManager @Inject constructor() {
 
     fun startTakeOff(callback: CommonCallbacks.CompletionCallbackWithParam<EmptyMsg>) {
         FlightControllerKey.KeyStartTakeoff.create().action({

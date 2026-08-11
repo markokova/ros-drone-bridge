@@ -1,14 +1,19 @@
 package com.example.rosdronebridge.util
 
+import android.util.Log
 import com.example.rosdronebridge.data.DroneState
+import com.example.rosdronebridge.data.GimbalPayload
 import com.example.rosdronebridge.data.ROSMessage
 import com.example.rosdronebridge.data.ROSPayload
 import com.example.rosdronebridge.data.StringPayload
 import com.example.rosdronebridge.data.VelocityPayload
 import org.json.JSONObject
 import java.sql.Timestamp
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class ROSMessageParser {
+@Singleton
+class ROSMessageParser @Inject constructor() {
     fun parseRosCommand(raw: String): ROSMessage? {
 
         return try {
@@ -22,13 +27,33 @@ class ROSMessageParser {
             val payload: ROSPayload
 
             when (topic) {
-                "basic_command" -> {
+                "/drone/basic_command" -> {
                     val message = msgObject.getString("data")
                     payload = StringPayload(message)
+                    Log.d("PARSER:String", "payload: $payload")
                 }
-                "velocity_command" -> {
-                    val message = root.getJSONObject("data")
-                    payload = parseVelocityData(message)
+                "/drone/velocity_command" -> {
+                    //val message = root.getJSONObject("data")
+                    val linearData = msgObject.getJSONObject("linear")
+                    val angularData = msgObject.getJSONObject("angular")
+                    payload = VelocityPayload(
+                        linearData.getDouble("x"),
+                        linearData.getDouble("y"),
+                        linearData.getDouble("z"),
+                        angularData.getDouble("z"),
+                        angularData.getDouble("x"),
+                        angularData.getDouble("y")
+                    )
+                    Log.d("PARSER:Velocity", "payload: $payload")
+                }
+                "/gimbal/control" -> {
+                    val message = msgObject.getJSONObject("data")
+
+                    payload = GimbalPayload(
+                        message.getDouble("pitch"),
+                        message.getDouble("yaw")
+                    )
+                    Log.d("PARSER:Gimbal", "payload: $payload")
                 }
                 else -> {
                     val message = msgObject.getString("data")
@@ -47,40 +72,48 @@ class ROSMessageParser {
     fun parseDroneState(droneState: DroneState) : String {
         return "{\n" +
                 "  \"op\": \"publish\",\n" +
-                "  \"topic\": \"drone/state\",\n" +
+                "  \"topic\": \"/drone/state\",\n" +
                 "  \"msg\": {\n" +
                 "    \"connected\": ${droneState.connected},\n" +
                 "    \"motorsOn\": ${droneState.motorsOn},\n" +
                 "    \"isFlying\": ${droneState.isFlying},\n" +
-                "    \"virtualStickAvailable\": ${droneState.virtualStickAvailable},\n" +
+                "    \"virtualStickAvailable\": ${droneState.isVirtualStickEnabled},\n" +
                 "    \"flightMode\": \"${droneState.flightMode}\",\n" +
                 "    \"satelliteCount\": ${droneState.satelliteCount},\n" +
                 "    \"isHomeLocationSet\": ${droneState.isHomeLocationSet},\n" +
-                "    \"isCompassInNormalState\": ${droneState.isCompassInNormalState},\n" +
+                "    \"isCompassInNormalState\": ${droneState.isCompassInNormalState}\n" +
+                "    \"takeoffError\": \"${droneState.takeoffError}\""
                 "  }\n" +
                 "}"
     }
-    fun parseTelemetryData(droneState: DroneState) : String {
-         return "{\n" +
-                "  \"op\": \"publish\",\n" +
-                "  \"topic\": \"drone/telemetry\",\n" +
-                "  \"msg\": {\n" +
-                "    \"latitude\": ${droneState.latitude},\n" +
-                "    \"longitude\": ${droneState.longitude},\n" +
-                "    \"altitude\": ${droneState.altitude},\n" +
-                "    \"velocityX\": ${droneState.velocityX},\n" +
-                "    \"velocityY\": ${droneState.velocityY},\n" +
-                "    \"velocityZ\": ${droneState.velocityZ}\n" +
-                "  }\n" +
-                "}"
+    fun parseTelemetryData(droneState: DroneState): String {
+        val telemetryJson = JSONObject().apply {
+            put("latitude", droneState.latitude)
+            put("longitude", droneState.longitude)
+            put("altitude", droneState.altitude)
+            put("velocityX", droneState.velocityX)
+            put("velocityY", droneState.velocityY)
+            put("velocityZ", droneState.velocityZ)
+            put("takeoffError", droneState.takeoffError?.name)
+        }
+
+        return JSONObject().apply {
+            put("op", "publish")
+            put("topic", "/drone/telemetry")
+            put("msg", JSONObject().apply {
+                put("data", telemetryJson.toString())
+            })
+        }.toString()
     }
 
     fun parseVelocityData(message: JSONObject): VelocityPayload {
-        val x = message.getString("x").toDouble()
-        val y = message.getString("y").toDouble()
-        val z = message.getString("z").toDouble()
-        val yaw = message.getString("yaw").toDouble()
+        val x = message.optDouble("x")
+        val y = message.optDouble("y")
+        val z = message.optDouble("z")
+        val yaw = message.optDouble("yaw")
+        val gimbalPitch = message.optDouble("gimbalPitch")
+        val gimbalYaw = message.optDouble("gimbalYaw")
 
-        return VelocityPayload(x, y, z, yaw)
+        return VelocityPayload(x, y, z, yaw, gimbalPitch, gimbalYaw)
     }
 }

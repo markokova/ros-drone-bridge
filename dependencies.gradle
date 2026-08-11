@@ -91,4 +91,8 @@ ext {
     deps.aspectj_tools = 'org.aspectj:aspectjtools:1.9.6'
     deps.aspectj_rt = 'org.aspectj:aspectjrt:1.9.6'
     deps.aspectj_weaver = 'org.aspectj:aspectjweaver:1.9.6'
+
+    // Dependency injection
+    deps.hiltAndroid = "com.google.dagger:hilt-android:2.57.1"
+    deps.hiltAndroidCompiler = "com.google.dagger:hilt-compiler:2.57.1"
 }

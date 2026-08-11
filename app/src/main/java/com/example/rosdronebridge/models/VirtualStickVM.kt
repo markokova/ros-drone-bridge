@@ -1,6 +1,7 @@
 package com.example.rosdronebridge.models
 
 import androidx.lifecycle.MutableLiveData
+import dagger.hilt.android.lifecycle.HiltViewModel
 import dji.sdk.keyvalue.key.RemoteControllerKey
 import dji.sdk.keyvalue.value.flightcontroller.*
 import dji.v5.common.callback.CommonCallbacks
@@ -10,6 +11,8 @@ import dji.v5.manager.KeyManager
 import dji.v5.manager.aircraft.virtualstick.VirtualStickManager
 import dji.v5.manager.aircraft.virtualstick.VirtualStickState
 import dji.v5.manager.aircraft.virtualstick.VirtualStickStateListener
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * Class Description
@@ -19,7 +22,8 @@ import dji.v5.manager.aircraft.virtualstick.VirtualStickStateListener
  *
  * Copyright (c) 2021, DJI All Rights Reserved.
  */
-class VirtualStickVM : DJIViewModel() {
+@Singleton
+class VirtualStickVM @Inject constructor() {
 
     val currentSpeedLevel = MutableLiveData(0.0)
     var useRcStick = MutableLiveData(false)
@@ -125,10 +129,10 @@ class VirtualStickVM : DJIViewModel() {
         }
     }
 
-    override fun onCleared() {
-        KeyManager.getInstance().cancelListen(this)
-        VirtualStickManager.getInstance().clearAllVirtualStickStateListener()
-    }
+//    override fun onCleared() {
+//        KeyManager.getInstance().cancelListen(this)
+//        VirtualStickManager.getInstance().clearAllVirtualStickStateListener()
+//    }
 
     data class VirtualStickStateInfo(
         var state: VirtualStickState = VirtualStickState(false, FlightControlAuthority.UNKNOWN, false),

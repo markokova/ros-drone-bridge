@@ -1,14 +1,17 @@
 package com.example.rosdronebridge
 
 import android.app.Application
+import com.example.rosdronebridge.models.ROSBridgeManager
+import javax.inject.Inject
 
 open class DJIApplication : Application() {
 
-    private val msdkManagerVM: MSDKManagerVM by globalViewModels()
+    @Inject lateinit var rosBridgeManager: ROSBridgeManager
+    @Inject lateinit var msdkManager: MSDKManager
 
     override fun onCreate() {
         super.onCreate()
 
-        msdkManagerVM.initMobileSDK(this)
+        msdkManager.initMobileSDK(this)
     }
 }

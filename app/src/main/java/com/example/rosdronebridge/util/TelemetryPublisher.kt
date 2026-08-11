@@ -1,18 +1,21 @@
 package com.example.rosdronebridge.util
 
-import com.example.rosdronebridge.models.ROSBridgeClientVM
+import com.example.rosdronebridge.models.ROSBridgeManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class TelemetryPublisher(
+@Singleton
+class TelemetryPublisher @Inject constructor(
     private val droneStateTracker: DroneStateTracker,
-    private val rosBridgeClientVM: ROSBridgeClientVM
+    private val rosBridgeManager: ROSBridgeManager
 ) {
 
     fun start(scope: CoroutineScope) {
         scope.launch {
             droneStateTracker.droneState.collect { state ->
-                rosBridgeClientVM.publishTelemetry(state)
+                rosBridgeManager.publishTelemetry(state)
             }
         }
     }

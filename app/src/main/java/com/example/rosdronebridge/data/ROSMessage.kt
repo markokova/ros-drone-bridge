@@ -13,7 +13,7 @@ TODO
     Each of those classes can have appropriate DJIViewModel injected in ROSBridgeClient
 
     After that, in DroneController, we can just listen to new messages(topics) being added to
-    a list from ROSBridgeClientVM and call an appropriate method in this way:
+    a list from ROSBridgeManager and call an appropriate method in this way:
     ROSTopic.execute("1,2,3,4")
     which will execute
     ROSTopic
@@ -25,6 +25,6 @@ TODO
 data class ROSMessage(
     val operation : String,
     val topic : String,
-    val message : ROSPayload,
+    val payload : ROSPayload,
     val timestamp: Timestamp
 )
