@@ -111,6 +111,6 @@ The implementation relies on the following software and hardware components:
 
 ---
 
-## 📜 License and Disclaimer
+## License and Disclaimer
 
 This project was developed as part of a Master's thesis. Commercial usage of this code is subject to the licensing terms and conditions of the **DJI Mobile SDK**. When deploying this software on physical aircraft, always comply with local civil aviation regulations, safety guidelines, and airspace restrictions.
