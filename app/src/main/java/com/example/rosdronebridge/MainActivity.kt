@@ -2,41 +2,32 @@ package com.example.rosdronebridge
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.Gravity
-import android.widget.Button
-import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.core.view.GravityCompat
-import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.rosdronebridge.data.StringPayload
 import com.example.rosdronebridge.data.VelocityPayload
-import com.example.rosdronebridge.models.DroneControllerV2
+import com.example.rosdronebridge.models.BasicAircraftControlManager
+import com.example.rosdronebridge.models.VirtualStickController
 import com.example.rosdronebridge.models.PerceptionController
 import com.example.rosdronebridge.models.ROSBridgeManager
 import com.example.rosdronebridge.models.ROSMessageHandler
 import com.example.rosdronebridge.models.SimulatorController
 import com.example.rosdronebridge.util.DroneStateTracker
-import com.example.rosdronebridge.util.ROSMessageParser
 import com.example.rosdronebridge.util.SettingsManager
 import com.example.rosdronebridge.util.UDPVideoStreamer
-import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.android.material.navigation.NavigationView
 import dagger.hilt.android.AndroidEntryPoint
 import dji.sdk.keyvalue.key.ProductKey
 import dji.v5.et.create
 import dji.v5.et.listen
-import dji.v5.manager.KeyManager
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -50,7 +41,9 @@ class MainActivity : AppCompatActivity() {
     @Inject lateinit var simulatorController: SimulatorController
     @Inject lateinit var rosBridgeManager: ROSBridgeManager
     @Inject lateinit var droneStateTracker: DroneStateTracker
-    @Inject lateinit var droneController: DroneControllerV2
+    @Inject lateinit var basicAircraftControlManager: BasicAircraftControlManager
+
+    @Inject lateinit var virtualStickController: VirtualStickController
     @Inject lateinit var settingsManager: SettingsManager
     @Inject lateinit var udpVideoStreamer: UDPVideoStreamer
     @Inject lateinit var perceptionController: PerceptionController
@@ -65,6 +58,7 @@ class MainActivity : AppCompatActivity() {
 
         setupSettingsButton()
         setupVirtualStickButton()
+        setupGoHomeButton()
         setupVirtualStickInfoButton()
         observeDroneState()
 
@@ -83,7 +77,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        droneController.onAppBackgrounded()
+        virtualStickController.onAppBackgrounded()
     }
 
     private fun observeMessages() {
@@ -112,7 +106,7 @@ class MainActivity : AppCompatActivity() {
 
                     val timeOnly = rosMessage?.timestamp.toString().substringAfter(" ")
 
-                    if (rosMessage?.topic == "/drone/velocity_command") {
+                    if (rosMessage?.topic == "/drone/cmd_vel") {
                         velocityMsgTopic.text = rosMessage?.topic ?: "N/A"
                         velocityMsgData.text = formattedContent
                         velocityMsgTimestamp.text = timeOnly ?: "--"
@@ -240,11 +234,20 @@ class MainActivity : AppCompatActivity() {
     private fun setupVirtualStickButton() {
         val vsButton = findViewById<FloatingActionButton>(R.id.btnEnableVirtualStick)
         vsButton.setOnClickListener {
-            if (droneController.isReadyForVirtualStick()) {
-                droneController.enableVirtualStick()
+            if (virtualStickController.isReadyForVirtualStick()) {
+                virtualStickController.enableVirtualStick()
                 Toast.makeText(this, "Requesting Virtual Stick Authority...", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this, "Drone not ready for Virtual Stick", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun setupGoHomeButton() {
+        val vsButton = findViewById<FloatingActionButton>(R.id.btnGoHome)
+        vsButton.setOnClickListener {
+            if (droneStateTracker.droneState.value.isFlying) {
+                basicAircraftControlManager.goHome()
             }
         }
     }
