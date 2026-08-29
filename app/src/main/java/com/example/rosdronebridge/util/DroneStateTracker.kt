@@ -1,5 +1,6 @@
 package com.example.rosdronebridge.util
 
+import android.location.Location
 import com.example.rosdronebridge.data.DroneState
 import com.example.rosdronebridge.models.ROSBridgeManager
 import dji.sdk.keyvalue.key.BatteryKey
@@ -7,7 +8,7 @@ import dji.sdk.keyvalue.key.FlightControllerKey
 import dji.sdk.keyvalue.key.GimbalKey
 import dji.sdk.keyvalue.key.ProductKey
 import dji.sdk.keyvalue.value.flightcontroller.FCConfigCompassCheckStatus
-import dji.sdk.keyvalue.value.flightcontroller.FlightMode
+import dji.sdk.keyvalue.value.flightcontroller.HomeLocationType
 import dji.v5.et.create
 import dji.v5.et.listen
 import dji.v5.manager.KeyManager
@@ -16,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Singleton
 class DroneStateTracker @Inject constructor(
@@ -24,10 +27,6 @@ class DroneStateTracker @Inject constructor(
     private val _droneState = MutableStateFlow(DroneState())
     val droneState: StateFlow<DroneState> = _droneState
 
-//    init {
-//        initStateListeners()
-//    }
-
     fun initStateListeners() {
         ProductKey.KeyConnection.create().listen(this) { connected ->
             updateState { it.copy(connected = connected == true) }
@@ -35,16 +34,53 @@ class DroneStateTracker @Inject constructor(
                 "DroneStateTracker.initStateListeners()", "connected: $connected")
         }
 
-        FlightControllerKey.KeyAircraftLocation3D.create().listen(this) { location ->
-            // TODO - log somehow: Log.d("DroneStateTracker", "RAW FC Location: ${location?.latitude}")
+        FlightControllerKey.KeyAltitude.create().listen(this) { currentAltitude ->
+            updateState { it.copy(altitude = currentAltitude) }
+        }
+
+        FlightControllerKey.KeyAircraftLocation.create().listen(this) { location ->
             location?.let {
-                updateState {
-                    it.copy(
+                updateState { currentState ->
+                    currentState.copy(
                         latitude = location.latitude,
-                        longitude = location.longitude,
-                        altitude = location.altitude
+                        longitude = location.longitude
                     )
                 }
+            }
+        }
+
+        FlightControllerKey.KeyHomeLocationWithType.create().listen(this) { homeLocation ->
+            updateState {
+
+                val currentLat = droneState.value.latitude
+                val currentLon = droneState.value.longitude
+
+                if (currentLat == null || currentLon == null || currentLat.isNaN() || currentLon.isNaN()) {
+                    return@updateState it.copy(
+                        latitudeDistFromHome = 0.0,
+                        longitudeDistFromHome = 0.0,
+                        homeLocationType = homeLocation?.type ?: HomeLocationType.UNKNOWN
+                    )
+                }
+
+                val homeLat = homeLocation?.value?.latitude
+                val homeLon = homeLocation?.value?.longitude
+                val homeLocationType = homeLocation?.type ?: HomeLocationType.UNKNOWN
+
+                val (eastMeters, northMeters) = if (homeLat != null && homeLon != null
+                    && !homeLat.isNaN() && !homeLon.isNaN()
+                    && !(homeLat == 0.0 && homeLon == 0.0)
+                ) {
+                    calculateDistanceComponents(homeLat, homeLon, currentLat, currentLon)
+                } else {
+                    Pair(0.0, 0.0)
+                }
+
+                it.copy(
+                    latitudeDistFromHome = northMeters,
+                    longitudeDistFromHome = eastMeters,
+                    homeLocationType = homeLocationType
+                )
             }
         }
 
@@ -109,12 +145,6 @@ class DroneStateTracker @Inject constructor(
                         gimbalYaw = attitude.yaw
                     )
                 }
-
-//                rosBridgeManager.logToRos(
-//                    "logs",
-//                    "DroneStateTracker",
-//                    "Gimbal attitude: pitch=${attitude.pitch}, roll=${attitude.roll}, yaw=${attitude.yaw}"
-//                )
             }
         }
 
@@ -145,10 +175,6 @@ class DroneStateTracker @Inject constructor(
         FlightControllerKey.KeyIsVisionSensorUsed.create().listen(this) { used ->
             rosBridgeManager.logToRos("state", "StateTracker", "visionUsed:$used")
         }
-
-//        FlightControllerKey.KeyUltrasonicHeight.create().listen(this) { height ->
-//            rosBridgeManager.logToRos("state", "StateTracker", "ultraHeight:$height")
-//        }
 
         FlightControllerKey.KeyUltrasonicHasError.create().listen(this) { err ->
             rosBridgeManager.logToRos("state", "StateTracker", "ultraError:$err")
@@ -199,5 +225,19 @@ class DroneStateTracker @Inject constructor(
                 altitude = positionZ.toDouble()
             )
         }
+    }
+    private fun calculateDistanceComponents(
+        homeLat: Double, homeLon: Double,
+        currentLat: Double, currentLon: Double
+    ): Pair<Double, Double> {
+        val results = FloatArray(3)
+        Location.distanceBetween(homeLat, homeLon, currentLat, currentLon, results)
+        val distanceMeters = results[0].toDouble()
+        val bearingDeg = results[1].toDouble()
+        val bearingRad = Math.toRadians(bearingDeg)
+
+        val dxEast  = distanceMeters * sin(bearingRad)
+        val dyNorth = distanceMeters * cos(bearingRad)
+        return Pair(dxEast, dyNorth)
     }
 }

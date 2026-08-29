@@ -32,7 +32,7 @@ class ROSMessageParser @Inject constructor() {
                     payload = StringPayload(message)
                     Log.d("PARSER:String", "payload: $payload")
                 }
-                "/drone/velocity_command" -> {
+                "/drone/cmd_vel" -> {
                     //val message = root.getJSONObject("data")
                     val linearData = msgObject.getJSONObject("linear")
                     val angularData = msgObject.getJSONObject("angular")
@@ -94,7 +94,9 @@ class ROSMessageParser @Inject constructor() {
             put("velocityX", droneState.velocityX)
             put("velocityY", droneState.velocityY)
             put("velocityZ", droneState.velocityZ)
-            put("takeoffError", droneState.takeoffError?.name)
+            put("homeLocationType", droneState.homeLocationType.name)
+            put("latitudeDistanceFromHome", droneState.latitudeDistFromHome)
+            put("longitudeDistanceFromHome", droneState.longitudeDistFromHome)
         }
 
         return JSONObject().apply {
