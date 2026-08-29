@@ -46,7 +46,7 @@ class ROSBridgeManager @Inject constructor(
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 _isConnected.value = true
                 subscribeToRosTopic("/drone/basic_command", "std_msgs/String")
-                subscribeToRosTopic("/drone/velocity_command", "geometry_msgs/Twist")
+                subscribeToRosTopic("/drone/cmd_vel", "geometry_msgs/Twist")
                 advertiseRosTopic("/drone/telemetry", "std_msgs/String")
                 advertiseRosTopic("/drone/state", "std_msgs/String")
                 advertiseRosTopic("/drone/logs", "std_msgs/String")
@@ -59,9 +59,6 @@ class ROSBridgeManager @Inject constructor(
                 val rosMessage = parser.parseRosCommand(text)
                 appScope.launch {
                     _message.emit(rosMessage)
-                }
-                if (rosMessage?.topic == "/drone/basic_command") {
-                    logToRos("receivedMsg", "ROSBridgeManager", "msg: ${rosMessage?.payload}")
                 }
             }
 

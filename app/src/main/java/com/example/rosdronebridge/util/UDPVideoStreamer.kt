@@ -77,8 +77,6 @@ class UDPVideoStreamer @Inject constructor(
 
             rosBridgeManager.logToRos("logs", "UDPVideoStreamer", "Initializing Stream Target -> IP: $rawIp, Port: $targetPort")
 
-            Toast.makeText(context, "Initializing Stream Target -> IP: $rawIp, Port: $targetPort", Toast.LENGTH_SHORT).show()
-
             networkExecutor?.execute {
                 try {
                     targetIp = InetAddress.getByName(rawIp)

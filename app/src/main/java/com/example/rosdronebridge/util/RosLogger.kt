@@ -8,7 +8,6 @@ import javax.inject.Singleton
 class RosLogger @Inject constructor(
     private val rosBridgeManager: ROSBridgeManager
 ) {
-
     fun log(topic: String, component: String, message: String) {
         rosBridgeManager.logToRos(topic, component, message)
     }
