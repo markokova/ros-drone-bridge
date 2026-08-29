@@ -37,6 +37,8 @@ class SettingsActivity : AppCompatActivity() {
     @Inject lateinit var rosBridgeManager: ROSBridgeManager
 
     private var isInitialSelection = true
+    private val failsafeActions = listOf(FailsafeAction.HOVER, FailsafeAction.LANDING, FailsafeAction.GOHOME)
+
     private var speedLevel: Int = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -66,8 +68,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // TODO - check if setting works properly after resume, does it remember previous position?
         val failsafeAction = settingsManager.getFailsafeAction()
-        val failsafeActionSpinner = findViewById<Spinner>(R.id.failsafeActionSpinner)
-        failsafeActionSpinner.setSelection(failsafeAction)
+        rosBridgeManager.logToRos("logs", "SettingsActivity", "Failsafe resumed: $failsafeAction")
+
+        if (failsafeAction in failsafeActions.indices) {
+            findViewById<Spinner>(R.id.failsafeActionSpinner).setSelection(failsafeAction)
+        }
     }
 
     private fun setupAvoidanceToggle() {
@@ -81,20 +86,33 @@ class SettingsActivity : AppCompatActivity() {
     // TODO - remember the set value after leaving the activity, the same as in other two attributes
     private fun setupFailsafeActionSpinner() {
         val spinner = findViewById<Spinner>(R.id.failsafeActionSpinner)
-        val actions = listOf(FailsafeAction.GOHOME, FailsafeAction.HOVER, FailsafeAction.LANDING)
-        
+        val actions = listOf(FailsafeAction.HOVER, FailsafeAction.LANDING, FailsafeAction.GOHOME)
+
         val adapter = ArrayAdapter(this, R.layout.spinner_item, actions.map { it.name })
         adapter.setDropDownViewResource(R.layout.spinner_item)
         spinner.adapter = adapter
 
         spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (isInitialSelection) {
-                    isInitialSelection = false
-                    return
+                val selectedAction = failsafeActions[position]
+
+                rosBridgeManager.logToRos("logs", "SettingsActivity", "Failsafe selected: ${selectedAction.name}")
+                rosBridgeManager.logToRos("logs", "SettingsActivity", "Ordinal: ${selectedAction.ordinal}")
+
+                // FIX: Only trigger logic if the new selection is different from the saved one
+                // This replaces the fragile 'isInitialSelection' boolean tracking entirely
+                if (position != settingsManager.getFailsafeAction()) {
+                    safetyController.setConnectionLostAction(selectedAction)
+                    settingsManager.setFailsafeAction(position) // FIX: Persists configuration change locally
+                    rosBridgeManager.logToRos("logs", "SettingsActivity", "Failsafe position: $position")
+
                 }
-                safetyController.setConnectionLostAction(actions[position])
-                spinner.setSelection(settingsManager.getFailsafeAction())
+//                if (isInitialSelection) {
+//                    isInitialSelection = false
+//                    return
+//                }
+//                safetyController.setConnectionLostAction(actions[position])
+//                spinner.setSelection(settingsManager.getFailsafeAction())
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
