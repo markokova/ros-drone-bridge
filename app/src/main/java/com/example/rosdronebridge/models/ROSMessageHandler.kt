@@ -1,7 +1,6 @@
 package com.example.rosdronebridge.models
 
 import android.util.Log
-import com.example.rosdronebridge.data.GimbalPayload
 import com.example.rosdronebridge.data.ROSMessage
 import com.example.rosdronebridge.data.StringPayload
 import com.example.rosdronebridge.data.VelocityPayload
@@ -26,8 +25,9 @@ class ROSMessageHandler @Inject constructor(
     private val rosBridgeManager: ROSBridgeManager,
     private val telemetryPublisher: TelemetryPublisher,
     @ApplicationScope private val coroutineScope: CoroutineScope,
+    private val basicAircraftControlManager: BasicAircraftControlManager,
     private val gimbalController: GimbalController,
-    private val droneController: DroneControllerV2,
+    private val virtualStickController: VirtualStickController,
     private val speedController: SpeedController
 ) {
 
@@ -61,38 +61,38 @@ class ROSMessageHandler @Inject constructor(
 
         coroutineScope.launch {
             rosBridgeManager.message.collect { message ->
-                handleRosMessage2(message)
+                handleRosMessage(message)
             }
         }
 
         FlightControllerKey.KeyFlightControlCurrentAuthority.create().listen(this) { authority ->
-            rosBridgeManager.logToRos("state", "DroneController", "authority:$authority")
+            rosBridgeManager.logToRos("state", "VirtualStickController", "authority:$authority")
         }
 
         FlightControllerKey.KeyVirtualStickControlModeEnabled.create().listen(this) { enabled ->
-            rosBridgeManager.logToRos("state", "DroneController", "vsEnabled:$enabled")
+            rosBridgeManager.logToRos("state", "VirtualStickController", "vsEnabled:$enabled")
         }
     }
 
-    private fun handleRosMessage2(command: ROSMessage?) {
+    private fun handleRosMessage(command: ROSMessage?) {
         when (command?.topic) {
 
             // ********** DRONE CONTROL **********
             "/drone/basic_command" -> {
                 val payload = command.payload as? StringPayload ?: return
                 when (payload.message) {
-                    "takeoff" -> droneController.takeoff()
-                    "land" -> droneController.land()
+                    "takeoff" -> basicAircraftControlManager.startTakeOff()
+                    "land" -> basicAircraftControlManager.startLanding()
                 }
             }
-            "/drone/velocity_command" -> {
+            "/drone/cmd_vel" -> {
                 if (command.payload is VelocityPayload) {
                     lastRosCommandTime = System.currentTimeMillis()
 
                     // Cache latest drone flight instructions. Internal clock ticks every 50ms
                     // triggering latest instructions to be sent to drone.
                     targetRoll = command.payload.x.coerceIn(-MAX_VXY, MAX_VXY)
-                    targetPitch = command.payload.y.coerceIn(-MAX_VXY, MAX_VXY)
+                    targetPitch = -command.payload.y.coerceIn(-MAX_VXY, MAX_VXY)
                     targetVerticalThrottle = command.payload.z.coerceIn(-MAX_VZ, MAX_VZ)
                     targetYawRate = Math.toDegrees(command.payload.yaw).coerceIn(-MAX_YAW_RATE, MAX_YAW_RATE)
                     targetGimbalPitch = command.payload.gimbalPitch
@@ -107,7 +107,7 @@ class ROSMessageHandler @Inject constructor(
             try {
                 val now = System.currentTimeMillis()
 
-                if (droneController.virtualStickActivated && droneController.advancedModeReady) {
+                if (virtualStickController.virtualStickActivated && virtualStickController.advancedModeReady) {
                     // Network Safety Timeout: If Python stalls, cleanly default to a safe hover
                     if (now - lastRosCommandTime > ROS_TIMEOUT_MS) {
                         targetRoll = 0.0
@@ -130,21 +130,21 @@ class ROSMessageHandler @Inject constructor(
                         verticalThrottle = targetVerticalThrottle * speedMultiplier
                     }
 
-                    droneController.sendVirtualStickAdvancedParam(controlPayload)
+                    virtualStickController.sendVirtualStickAdvancedParam(controlPayload)
                     gimbalController.rotateGimbalContinuous(
                         targetGimbalPitch,
                         targetGimbalYaw
                     )
                 }
             } catch (e: Exception) {
-                Log.e("DroneController", "Clock pipeline skip: ${e.message}")
+                Log.e("VirtualStickController", "Clock pipeline skip: ${e.message}")
             }
             delay(50) // Enforces a 20Hz drone control heartbeat
         }
     }
 
     fun onAppBackgrounded() {
-        droneController.emergencyStop("App moved to background")
+        virtualStickController.emergencyStop("App moved to background")
     }
 
 }
