@@ -1,0 +1,126 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'dagger.hilt.android.plugin'
+
+
+android {
+    namespace 'com.example.rosdronebridge'
+    compileSdkVersion Integer.parseInt(project.ANDROID_COMPILE_SDK_VERSION)
+
+    defaultConfig {
+        applicationId "com.example.rosdronebridge"
+        minSdkVersion Integer.parseInt(project.ANDROID_MIN_SDK_VERSION)
+        targetSdkVersion Integer.parseInt(project.ANDROID_TARGET_SDK_VERSION)
+        versionCode 1
+        versionName "1.0"
+        manifestPlaceholders["API_KEY"] = project.AIRCRAFT_API_KEY
+
+        multiDexEnabled true
+        ndk {
+            //noinspection ChromeOsAbiSupport
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources false
+        }
+        debug {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8
+        freeCompilerArgs += ["-Xjvm-default=all"]
+    }
+
+    //关闭lint
+    lintOptions {
+        checkReleaseBuilds false
+        abortOnError false
+    }
+
+    packagingOptions {
+        doNotStrip "*/*/libconstants.so"
+        doNotStrip "*/*/libdji_innertools.so"
+        doNotStrip "*/*/libdjibase.so"
+        doNotStrip "*/*/libDJICSDKCommon.so"
+        doNotStrip "*/*/libDJIFlySafeCore-CSDK.so"
+        doNotStrip "*/*/libdjifs_jni-CSDK.so"
+        doNotStrip "*/*/libDJIRegister.so"
+        doNotStrip "*/*/libdjisdk_jni.so"
+        doNotStrip "*/*/libDJIUpgradeCore.so"
+        doNotStrip "*/*/libDJIUpgradeJNI.so"
+        doNotStrip "*/*/libDJIWaypointV2Core-CSDK.so"
+        doNotStrip "*/*/libdjiwpv2-CSDK.so"
+        doNotStrip "*/*/libFlightRecordEngine.so"
+        doNotStrip "*/*/libvideo-framing.so"
+        doNotStrip "*/*/libwaes.so"
+        doNotStrip "*/*/libagora-rtsa-sdk.so"
+        doNotStrip "*/*/libc++.so"
+        doNotStrip "*/*/libc++_shared.so"
+        doNotStrip "*/*/libmrtc_28181.so"
+        doNotStrip "*/*/libmrtc_agora.so"
+        doNotStrip "*/*/libmrtc_core.so"
+        doNotStrip "*/*/libmrtc_core_jni.so"
+        doNotStrip "*/*/libmrtc_data.so"
+        doNotStrip "*/*/libmrtc_log.so"
+        doNotStrip "*/*/libmrtc_onvif.so"
+        doNotStrip "*/*/libmrtc_rtmp.so"
+        doNotStrip "*/*/libmrtc_rtsp.so"
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+        pickFirst "**/libdjisdk_v5.so"
+        pickFirst "**/libSDKRelativeJNI.so"
+    }
+
+    buildFeatures {
+        viewBinding true
+    }
+}
+
+dependencies {
+    implementation libs.play.services.maps3d
+
+    /** <-----------------依赖MSDK--------------------> **/
+    compileOnly deps.aircraftProvided
+    implementation deps.aircraft
+    implementation deps.networkImp
+
+    /** <-----------------sample所需--------------------> **/
+    implementation project(':uxsdk')
+    implementation deps.appcompat
+    implementation deps.constraintLayout
+    implementation deps.aacCommon
+    implementation deps.aacRuntime
+    implementation deps.kotlinLib
+    implementation deps.ktxCore
+    implementation deps.ktxFrag
+    implementation deps.ktxNavigation
+    implementation deps.ktxNavigationUi
+    implementation deps.recyclerview
+    implementation deps.legacySupport
+    implementation deps.lifecycleViewModel
+    implementation deps.lifecycleLiveData
+    implementation deps.leakcanary
+    implementation deps.glide
+    implementation deps.dynamicanimation
+    implementation deps.expandedit
+    implementation deps.rx3Kt
+    implementation deps.dom
+    kapt deps.glidecompiler
+    implementation deps.lynx
+    implementation "androidx.multidex:multidex:2.0.1"
+    implementation deps.hiltAndroid
+    kapt deps.hiltAndroidCompiler
+}
